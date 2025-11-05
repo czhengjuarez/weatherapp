@@ -1,4 +1,7 @@
-import { getAssetFromKV, mapRequestToAsset } from '@cloudflare/kv-asset-handler'
+import { getAssetFromKV } from '@cloudflare/kv-asset-handler'
+import manifestJSON from '__STATIC_CONTENT_MANIFEST'
+
+const assetManifest = JSON.parse(manifestJSON)
 
 export default {
   async fetch(request, env, ctx) {
@@ -8,14 +11,7 @@ export default {
       // Serve static assets from the dist folder
       const options = {
         ASSET_NAMESPACE: env.__STATIC_CONTENT,
-        ASSET_MANIFEST: __STATIC_CONTENT_MANIFEST,
-        mapRequestToAsset: (req) => {
-          // Map requests to the correct asset path
-          const url = new URL(req.url)
-          // Remove leading slash if present to match asset keys
-          url.pathname = url.pathname.replace(/^\/+/, '/')
-          return new Request(url.toString(), req)
-        },
+        ASSET_MANIFEST: assetManifest,
       }
 
       return await getAssetFromKV(
@@ -30,7 +26,7 @@ export default {
       try {
         const options = {
           ASSET_NAMESPACE: env.__STATIC_CONTENT,
-          ASSET_MANIFEST: __STATIC_CONTENT_MANIFEST,
+          ASSET_MANIFEST: assetManifest,
         }
 
         const notFoundResponse = await getAssetFromKV(
@@ -46,7 +42,10 @@ export default {
           headers: notFoundResponse.headers,
         })
       } catch (e) {
-        return new Response(`Error: ${e.message}`, { status: 500 })
+        return new Response(`Error: ${e.message}\nStack: ${e.stack}`, { 
+          status: 500,
+          headers: { 'Content-Type': 'text/plain' }
+        })
       }
     }
   },
